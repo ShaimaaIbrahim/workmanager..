@@ -1,9 +1,5 @@
 package com.example.live_activity_android_flutter
 
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-
 
 //class MainActivity : FlutterActivity() {
 //    @Override
@@ -28,34 +24,68 @@ import io.flutter.plugin.common.MethodChannel
 //    }
 //}
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.provider.Settings
 import android.provider.Settings.SettingNotFoundException
 import android.text.TextUtils.SimpleStringSplitter
+import android.util.Log
 import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.lifecycle.*
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import org.greenrobot.eventbus.EventBus
 
 class MainActivity : FlutterActivity() {
 
-    private val CHANNEL = "com.example.method_channel_example/channel"
+    private val CHANNEL = "DI"
+    private var finalSeconds: Int = 0
 
     lateinit var buttonChangePosition: Button
     lateinit var buttonCheck: Button
 
+    override fun onCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
+        super.onCreate(savedInstanceState, persistentState)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver())
+
+    }
+     @SuppressLint("CommitPrefEdits")
      @Override
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
-                if (call.method.equals("getNativeMessage")) {
+                if (call.method.equals("checkLayoutPermission")) {
                     checkPermissions()
-                    result.success("shaimaa")
-                } else {
+                }
+                else if (call.method.equals("stopLiveActivity")) {
+                    Log.e("shaimaa", "shaimaa")
+                    //System.exit(0)
+                }
+                else if (call.method.equals("startLiveActivity")) {
+                    val args  = call.arguments as Map<*, *>
+                    val seconds: Int = args["elapsedSeconds"] as Int
+                    Log.e("shaimaa", seconds.toString())
+                }
+                else if (call.method.equals("updateLiveActivity")) {
+                    val args  = call.arguments as Map<*, *>
+                    val seconds: Int = args["elapsedSeconds"] as Int
+                    finalSeconds = seconds
+                    EventBus.getDefault().post(EventPositionChanged(100, 0, finalSeconds))
+
+//                    val sharedPreferences = applicationContext.getSharedPreferences("SECONDS", Context.MODE_PRIVATE)
+//                    // Get SharedPreferences editor
+//                    val editor = sharedPreferences.edit()
+//                    editor.putInt("seconds", finalSeconds)
+                    Log.e("shaimaaSharedPreferences", finalSeconds.toString())
+                }
+                else {
                     result.notImplemented()
                 }
             }
@@ -104,5 +134,21 @@ class MainActivity : FlutterActivity() {
         }
         return false
     }
+    inner class AppLifecycleObserver : LifecycleObserver {
 
+        private var appInForeground = false
+
+        @OnLifecycleEvent(Lifecycle.Event.ON_START)
+        fun onForeground() {
+            EventBus().post(EventCheckBackground(false))
+            // App is in the foreground
+        }
+
+        @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+        fun onBackground() {
+            appInForeground = false
+            EventBus().post(EventCheckBackground(true))
+
+        }
+    }
 }

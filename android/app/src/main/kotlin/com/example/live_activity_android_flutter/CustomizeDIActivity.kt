@@ -40,7 +40,7 @@ class CustomizeDIActivity : AppCompatActivity() {
         seekBarX.progress = 0
         seekBarX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                eventBus.post(EventPositionChanged(seekBarY.progress, progress))
+                eventBus.post(EventPositionChanged(seekBarY.progress, progress, 0))
                 editor.putInt(Constants.X_KEY, progress).apply()
             }
 
@@ -59,7 +59,7 @@ class CustomizeDIActivity : AppCompatActivity() {
         seekBarY.progress = 0
         seekBarY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                eventBus.post(EventPositionChanged(progress, seekBarX.progress))
+                eventBus.post(EventPositionChanged(progress, seekBarX.progress, 0))
                 editor.putInt(Constants.Y_KEY, progress).apply()
             }
 

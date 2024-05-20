@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:live_activity_android_flutter/live_activity_manager.dart';
+
+import 'model/live_activity_model.dart';
 
 void main() {
   runApp(MyApp());
@@ -15,52 +20,108 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: LiveActivityPage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({required this.title});
+class LiveActivityPage extends StatefulWidget {
+  LiveActivityPage({required this.title});
 
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _LiveActivityPageState createState() => _LiveActivityPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _LiveActivityPageState extends State<LiveActivityPage> {
+  int seconds = 0;
+  bool isRunning = false;
+  Timer? timer;
+
+  /// channel key is used to send data from flutter to swift side over
+  /// a unique bridge (link between flutter & kotlin)
+  final LiveActivityManager diManager = LiveActivityManager(channelKey: 'DI');
+
+
+  void startTimer() {
+    setState(() {
+      isRunning = true;
+    });
+
+    // invoking startLiveActivity Method
+    diManager.startLiveActivity(
+      jsonData: LiveActivityDataModel(elapsedSeconds: 0).toMap(),
+    );
+
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        seconds++;
+      });
+
+      // invoking the updateLiveActivity Method
+      diManager.updateLiveActivity(
+        jsonData: LiveActivityDataModel(
+          elapsedSeconds: seconds,
+        ).toMap(),
+      );
+    });
+  }
+
+  void stopTimer() {
+    timer?.cancel();
+    setState(() {
+      seconds = 0;
+      isRunning = false;
+    });
+
+    // invoking the stopLiveActivity Method
+    diManager.stopLiveActivity();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text("LIVE ACTIVITY"),
       ),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Spacer(),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             ElevatedButton(
-              child: Text("SHOW OVERFLOW WIDGET NOTIFICATION"),
-              onPressed: (){
-                _invokeNativeMethod();
-             }
+                child: Text("CHECK PERMISSION"),
+                onPressed: diManager.checkLayoutPermission
             ),
-            Spacer()
-
+            const SizedBox(height: 50),
+            Text(
+              'Stopwatch: $seconds seconds',
+              style: const TextStyle(fontSize: 24),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                ElevatedButton(
+                    child: Text("START"),
+                    onPressed: isRunning ? null : startTimer
+                ),
+                SizedBox(width: 40),
+                ElevatedButton(
+                  child: Text("STOP"),
+                  onPressed: isRunning ? stopTimer : null,
+                ),
+              ],
+            )
           ],
-        ),
+        )
       )
     );
-  }
-  Future<void> _invokeNativeMethod() async {
-    try {
-      final String result = await platform.invokeMethod('getNativeMessage');
-      print('Received from native: $result');
-    } on PlatformException catch (e) {
-      print('Failed to invoke: ${e.message}');
-    }
   }
 }

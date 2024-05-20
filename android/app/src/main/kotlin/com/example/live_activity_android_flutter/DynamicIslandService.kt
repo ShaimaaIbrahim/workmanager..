@@ -2,32 +2,34 @@ package com.example.live_activity_android_flutter
 
 import LaunchFlutterWorker
 import android.accessibilityservice.AccessibilityService
-import android.content.Intent
+import android.annotation.SuppressLint
 import android.graphics.PixelFormat
-import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
-import android.widget.Toast
+import android.widget.TextView
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import io.flutter.embedding.android.FlutterActivity
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 
+
 class DynamicIslandService : AccessibilityService() {
 
     lateinit var floatingView: View
-    val eventBus = EventBus.getDefault()
+    private val eventBus = EventBus.getDefault()
     lateinit var windowManager: WindowManager
     lateinit var params: WindowManager.LayoutParams
     var y = 0
     var x = 0
+    var seconds = 0
+    var inBackground: Boolean = false
 
-    override fun onAccessibilityEvent(p0: AccessibilityEvent?) {
+    override fun onAccessibilityEvent(event: AccessibilityEvent) {
     }
 
     override fun onInterrupt() {
@@ -36,6 +38,7 @@ class DynamicIslandService : AccessibilityService() {
     override fun onCreate() {
         super.onCreate()
         eventBus.register(this)
+
         val preferences = getSharedPreferences(Constants.MY_DATA, MODE_PRIVATE)
         y = preferences.getInt(Constants.Y_KEY, 0)
         x = preferences.getInt(Constants.X_KEY, 0)
@@ -46,6 +49,7 @@ class DynamicIslandService : AccessibilityService() {
         showTheIsland()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun showTheIsland() {
         floatingView = LayoutInflater.from(this).inflate(R.layout.view_dynamic_island, null)
 
@@ -57,26 +61,23 @@ class DynamicIslandService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         )
 
+        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+
         params.x = x
-        params.y = y
+        params.y = 100
 
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        windowManager.addView(floatingView, params)
-
+     if(inBackground){
+         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+         windowManager.addView(floatingView, params)
+     }
         val open = floatingView.findViewById<ImageView>(R.id.imageView_open)
-        val notification = floatingView.findViewById<ImageView>(R.id.imageView_notification)
+        val secondsText = floatingView.findViewById<TextView>(R.id.seconds_text)
 
         open.setOnClickListener {
-            Log.e("shaimaa", "shaimaa")
-
             val workRequest = OneTimeWorkRequestBuilder<LaunchFlutterWorker>().build()
             WorkManager.getInstance(this).enqueue(workRequest)
 
-//            val intent = FlutterActivity
-//                .withCachedEngine("my_engine_id")
-//                .build(this)
-//            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-//            this.startActivity(intent)
+            secondsText.text = "" + seconds
         }
 
     }
@@ -87,6 +88,9 @@ class DynamicIslandService : AccessibilityService() {
         params.x = event.x
         windowManager.updateViewLayout(floatingView, params)
     }
-
+    @Subscribe(threadMode = ThreadMode.BACKGROUND)
+    fun onChangeBackground(event: EventCheckBackground) {
+      inBackground = event.inBackground
+    }
 }
 
